@@ -8,6 +8,10 @@
 #include "riscv.h"
 #include "spike_interface/spike_utils.h"
 
+elf_symbol all_symbols[100]; // 用于存储所有符号的elf表
+char symbol_names[100][30]; // 用于存储所有符号的名字
+int symbol_count; // 符号个数的计数
+
 typedef struct elf_info_t {
   spike_file_t *f;
   process *p;
@@ -75,6 +79,64 @@ elf_status elf_load(elf_ctx *ctx) {
   return EL_OK;
 }
 
+// 获取所有的函数名称，储存到symbol_names
+elf_status elf_load_funcname(elf_ctx* ctx){
+  //sprint("Entering loading funcname!\n");
+  elf_section_header str_header;
+  elf_section_header symbol_header;
+  elf_section_header shstr_header;
+
+  uint16 shstrlab_offset = ctx->ehdr.shstrndx; // shstrlab在节头表中的索引
+  // 读取shstrtab表项的内容
+  elf_fpread(ctx, (void *)&shstr_header, sizeof(shstr_header), ctx->ehdr.shoff + sizeof(shstr_header) * ctx->ehdr.shstrndx);
+  char shstr_sec[shstr_header.size];
+  elf_fpread(ctx, &shstr_sec, shstr_header.size, shstr_header.offset);
+  //sprint("%d %d\n", shstr_header.size, shstr_header.offset);
+
+  elf_section_header header;
+  // 遍历每一个节头表，找到字符串表与符号表的位置
+  for(int i = 0, offset = ctx->ehdr.shoff;i < ctx->ehdr.shnum;++i, offset += sizeof(elf_section_header)){
+    // 读取此节头表的表项header
+    if (elf_fpread(ctx, (void *)&header, sizeof(header), offset) != sizeof(header)) return EL_EIO;
+
+    uint32 type = header.type;
+    //sprint("%s\n",shstr_sec + header.name);
+    if(type == SHT_STRTAB) { // 字符串表
+      if(strcmp(shstr_sec + header.name, ".strtab") == 0){ // 为".strlab"表，可区分".shstrlab"
+        str_header = header;
+      }
+    }
+    else if(type == SHT_SYMTAB){ // 符号表
+      symbol_header = header;
+    }
+  }
+
+  uint64 symbol_num = symbol_header.size / sizeof(elf_symbol); // 符号总数
+
+  //sprint("%ld\n", symbol_num); 24
+  // 在符号表中获取各个函数的名称
+  for(int i = 0, offset = symbol_header.offset;i < symbol_num;++i, offset += sizeof(elf_symbol)){
+    elf_symbol symbol;
+    // 读取符号表表项
+    if (elf_fpread(ctx, (void *)&symbol, sizeof(symbol), offset) != sizeof(symbol)) return EL_EIO;
+    
+    //sprint("%d\n", symbol.info);
+    if((symbol.info & 0xf) == 2){ // 低四位值为2，是函数
+      char func_name[30];
+      uint64 func_offset = str_header.offset + symbol.name; // 计算在文件中的偏移
+      elf_fpread(ctx, (void*)&func_name, sizeof(func_name), func_offset);
+      //sprint("func_name: %s\n", func_name);
+      all_symbols[symbol_count++] = symbol; // 存储到数组中
+      strcpy(symbol_names[symbol_count - 1], func_name);
+    } 
+  }
+
+  // for(int i = 0;i < symbol_count;++i){
+  //   sprint("%s\n", symbol_names[i]);
+  // }
+  return EL_OK;
+}
+
 typedef union {
   uint64 buf[MAX_CMDLINE_ARGS];
   char *argv[MAX_CMDLINE_ARGS];
@@ -129,6 +191,11 @@ void load_bincode_from_host_elf(process *p) {
 
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
+
+  elf_status res = elf_load_funcname(&elfloader); // 获取各函数名称
+  if(res == EL_EIO){
+    panic("fail to load funcname.\n");
+  }
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
