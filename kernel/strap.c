@@ -26,7 +26,7 @@ static void handle_syscall(trapframe *tf) {
     tf->regs.a5, tf->regs.a6, tf->regs.a7);
 
   // TODO:  return value should be returned to user app
-
+  tf->regs.a0 = ret;
 }
 
 //
