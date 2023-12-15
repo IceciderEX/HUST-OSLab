@@ -176,7 +176,7 @@ int read_cwd(char *path) {
 }
 
 //
-// lib call to change pwd
+// lib call to change pwd (cd)
 //
 int change_cwd(const char *path) {
   return do_user_call(SYS_user_ccwd, (uint64)path, 0, 0, 0, 0, 0, 0);

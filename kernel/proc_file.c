@@ -81,6 +81,7 @@ struct file *get_opened_file(int fd) {
 //
 int do_open(char *pathname, int flags) {
   struct file *opened_file = NULL;
+  //sprint("pathname:%s", pathname);
   if ((opened_file = vfs_open(pathname, flags)) == NULL) return -1;
 
   int fd = 0;
@@ -180,7 +181,6 @@ int do_opendir(char *pathname) {
 
   // initialize this file structure
   memcpy(pfile, opened_file, sizeof(struct file));
-
   ++current->pfiles->nfiles;
   return fd;
 }
@@ -220,4 +220,86 @@ int do_link(char *oldpath, char *newpath) {
 //
 int do_unlink(char *path) {
   return vfs_unlink(path);
+}
+
+
+//
+// from path get direct path and store it in char* ult
+// added @lab4_challenge1
+void get_ult_path(const char* path, char* ult){
+  // path = "./ramfile"
+  int i = 0; // multiple ..  support
+  //char sub_str[MAX_PATH_LEN] = {0};
+  while(1){ // can add multiple ../../, but this exp doesn't need it
+    //sprint("substr: %s", sub_str);
+    if(path[0] == '.' && path[1] == '/'){ // ./ format
+      strcpy(ult, current->pfiles->cwd->name); // get current working dir
+      //sprint("curpath: %s", current->pfiles->cwd->name);
+      int cur_index = strlen(ult);
+      int i = 1;
+      if(strcmp(current->pfiles->cwd->name, "/") == 0){ // dir is /, doesn't need '/' added
+        i = 2;
+      }
+      for(i;path[i] != 0;++i){
+        ult[cur_index++] = path[i];
+      }
+      //sprint("ultpath2: %s", ult);
+    }
+    else if(path[0] == '.' && path[1] == '.') { // ../ format
+      int reverse_layer = 0; // record the number of ".."
+      int len_path = strlen(path);
+      for(int i = 0;i < len_path;){
+        if(path[i] == '.' && path[i + 1] == '.'){
+          reverse_layer++;
+          i += 3;
+        }
+        else break;
+      }
+      //sprint("cur_path: %s", current->pfiles->cwd->name);
+      char* cur_path = current->pfiles->cwd->name; // direct path
+      int len = strlen(cur_path);
+      int index = 0, count = 0;
+      for(int i = len - 1;i >= 0;--i){ // find parent path by find '/'
+        if(cur_path[i] == '/'){
+          if(++count == reverse_layer) {
+            index = i;
+            break;
+          }
+        }
+      }
+      memcpy(ult, cur_path, index + 1);
+      if(strcmp(ult, "/") != 0){
+        ult[strlen(ult) - 1] = 0;
+      }
+      //sprint("ult: %s", ult);
+    }
+    break;
+  }
+}
+
+//
+// find cuurent's path name, store it in para path
+// 
+int do_pwd(char* path){
+  // get dir from cwd
+  memcpy(path, current->pfiles->cwd->name, MAX_PATH_LEN);
+  return 0;
+}
+
+//
+// cd (relative ?)
+// 
+int do_cd(char* path){
+  int len = strlen(path);
+  //sprint("path's length: %d", len);
+ 
+  if(path[0] == '.'){ // using relative path 
+    char ult_path[MAX_PATH_LEN] = {0};
+    get_ult_path(path, ult_path);
+    memcpy(current->pfiles->cwd, ult_path, MAX_PATH_LEN);
+  }
+  else{ // use direct path
+    memcpy(current->pfiles->cwd, path, MAX_PATH_LEN);
+  }
+  return 0;
 }

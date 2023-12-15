@@ -9,6 +9,7 @@
 #include "util/string.h"
 #include "util/types.h"
 #include "util/hash_table.h"
+#include "proc_file.h" // add @lab4_challenge1
 
 struct dentry *vfs_root_dentry;               // system root direntry
 struct super_block *vfs_sb_list[MAX_MOUNTS];  // system superblock list
@@ -107,13 +108,17 @@ struct super_block *vfs_mount(const char *dev_name, int mnt_type) {
 // if the file does not exist, and O_CREAT bit is set in "flags", the file will
 // be created.
 // return: the file pointer to the opened file.
+// @lab4_challenge1: add support to relative path
 //
 struct file *vfs_open(const char *path, int flags) {
   struct dentry *parent = vfs_root_dentry; // we start the path lookup from root.
-  char miss_name[MAX_PATH_LEN];
-
+  char miss_name[MAX_PATH_LEN] = {0};
+  //sprint("vfs_open path: %s", path); 
+  char ult_path[MAX_PATH_LEN] = {0};
+  get_ult_path(path, ult_path);
+  //sprint("ult_path:%s", ult_path);
   // path lookup.
-  struct dentry *file_dentry = lookup_final_dentry(path, &parent, miss_name);
+  struct dentry *file_dentry = lookup_final_dentry(ult_path, &parent, miss_name);
 
   // file does not exist
   if (!file_dentry) {
@@ -122,7 +127,7 @@ struct file *vfs_open(const char *path, int flags) {
     // create the file if O_CREAT bit is set
     if (creatable) {
       char basename[MAX_PATH_LEN];
-      get_base_name(path, basename);
+      get_base_name(ult_path, basename);
 
       // a missing directory exists in the path
       if (strcmp(miss_name, basename) != 0) {

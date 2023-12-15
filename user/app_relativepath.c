@@ -59,7 +59,19 @@ int main(int argc, char *argv[]) {
   read_u(fd, buf, MAXBUF);
   printu("read content: \n%s\n", buf);
 
+  printu("\n======== Test 4: Multi ../  ========\n");
+  pwd();
+  cd("./1/3");
+  pwd();
+  cd("../..");
+  pwd();
+  cd("./1/3");
+  pwd();
+  cd("..");
+  pwd();
+
   close(fd);
+  pwd();
 
   printu("\nAll tests passed!\n\n");
   exit(0);

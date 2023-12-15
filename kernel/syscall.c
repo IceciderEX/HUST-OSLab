@@ -98,7 +98,7 @@ ssize_t sys_user_yield() {
 
 //
 // open file
-//
+// 
 ssize_t sys_user_open(char *pathva, int flags) {
   char* pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);
   return do_open(pathpa, flags);
@@ -215,6 +215,24 @@ ssize_t sys_user_unlink(char * vfn){
 }
 
 //
+// lib call to pwd
+//
+ssize_t sys_user_rcwd(char* path){
+  // convert virtual addr of path to physic addr, otherwise "Misalign AMO!"
+  char* pathpa = (char* )user_va_to_pa((pagetable_t)current->pagetable, (void*) path);
+  return do_pwd(pathpa);
+}
+
+//
+// lib call to cd
+//
+ssize_t sys_user_ccwd(char* path){
+  // convert virtual addr of path to physic addr, otherwise "Misalign AMO!"
+  char* pathpa = (char* )user_va_to_pa((pagetable_t)current->pagetable, (void*) path);
+  return do_cd(pathpa);
+}
+
+//
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
@@ -262,6 +280,11 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_link((char *)a1, (char *)a2);
     case SYS_user_unlink:
       return sys_user_unlink((char *)a1);
+    // added @lab4_challenge1
+    case SYS_user_rcwd:
+      return sys_user_rcwd((char* )a1);
+    case SYS_user_ccwd:
+      return sys_user_ccwd((char* )a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }
