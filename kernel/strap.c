@@ -11,6 +11,7 @@
 #include "util/functions.h"
 
 #include "spike_interface/spike_utils.h"
+#include "memlayout.h"
 
 //
 // handling the syscalls. will call do_syscall() defined in kernel/syscall.c
@@ -61,9 +62,17 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
       // hint: first allocate a new physical page, and then, maps the new page to the
       // virtual address that causes the page fault.
       // panic( "You need to implement the operations that actually handle the page fault in lab2_3.\n" );
+      // sprint("%llx\n", ROUNDDOWN(stval, PGSIZE));
       void* pa = alloc_page();
-      // ROUNDDOWN(stval, PGSIZE) is the page begining address?
-      user_vm_map((pagetable_t)current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+      // 每个页的大小为4kb，ROUNDDOWN(stval, PGSIZE) is the page begining address
+      // @lab2_challenge1：增加了对判断缺页的逻辑地址在用户进程逻辑地址空间中的位置，看是不是比USER_STACK_TOP小，
+      // 且比我们预设的可能的用户栈的最小栈底指针要大（这里，我们可以给用户栈空间一个上限，例如20个4KB的页面）
+      if(ROUNDDOWN(stval, PGSIZE) < USER_STACK_TOP && ROUNDDOWN(stval, PGSIZE) > (uint64)USER_STACK_TOP - PGSIZE * 20){
+        user_vm_map((pagetable_t)current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+      }
+      else{
+        panic("this address is not available!"); // 逻辑地址不满足要求，中止程序
+      }
       break;
     }
     default:
