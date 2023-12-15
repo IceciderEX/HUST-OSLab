@@ -9,7 +9,7 @@
 #include "spike_interface/spike_utils.h"
 
 elf_symbol all_symbols[100]; // 用于存储所有符号的elf表
-char symbol_names[100][30]; // 用于存储所有符号的名字
+char symbol_names[100][30]; // 用于存储所有符号的名字，用于打印函数名
 int symbol_count; // 符号个数的计数
 
 typedef struct elf_info_t {
