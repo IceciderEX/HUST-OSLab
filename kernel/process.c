@@ -233,14 +233,35 @@ int do_fork( process* parent)
         // segment of parent process.
         // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
         // 将子进程中对应的逻辑地址空间映射到其父进程中装载代码段的物理页面
-        uint64 parent_code_seg_va = parent->mapped_info[CODE_SEGMENT].va;
-        uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
-        map_pages(child->pagetable, parent->mapped_info[CODE_SEGMENT].va, parent->mapped_info[CODE_SEGMENT].npages * PGSIZE, parent_code_seg_pa, prot_to_type(PROT_EXEC | PROT_READ, 1));
+        for(int j = 0;j < parent->mapped_info[CODE_SEGMENT].npages;++j){
+          uint64 parent_code_seg_va = parent->mapped_info[CODE_SEGMENT].va + j * PGSIZE;
+          uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
+          map_pages(child->pagetable, parent->mapped_info[CODE_SEGMENT].va + j * PGSIZE, PGSIZE, 
+                    parent_code_seg_pa, prot_to_type(PROT_EXEC | PROT_READ, 1));
+        }
 
         // after mapping, register the vm region (do not delete codes below!)
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
         child->mapped_info[child->total_mapped_region].npages = parent->mapped_info[i].npages;
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      }
+      case DATA_SEGMENT:{
+        // 数据段不能映射，需要复制一份
+        for(int j = 0;j < parent->mapped_info[DATA_SEGMENT].npages;++j){
+          uint64 parent_code_seg_va = parent->mapped_info[DATA_SEGMENT].va + j * PGSIZE;
+          uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
+          void* duplicate_page = alloc_page();
+          memcpy(duplicate_page, (void*)parent_code_seg_pa, PGSIZE);
+          map_pages(child->pagetable, parent->mapped_info[DATA_SEGMENT].va + j * PGSIZE, PGSIZE, 
+                    (uint64)duplicate_page, prot_to_type(PROT_WRITE | PROT_READ, 1));
+        }
+
+        // after mapping, register the vm region (do not delete codes below!)
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages = parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
         child->total_mapped_region++;
         break;
       }
@@ -254,3 +275,22 @@ int do_fork( process* parent)
 
   return child->pid;
 }
+
+// find the first child for parent 
+int get_child_proc(process* parent){
+  for(int i = 0;i < NPROC;++i){
+    if(procs[i].parent == parent){
+      return i;
+    }
+  }
+  return -1;
+}
+
+// judge if child is parent's child proc
+int is_child(process* parent, int child){
+  if(procs[child].parent == parent) {
+    return 0;
+  }
+  else return -1;
+}
+

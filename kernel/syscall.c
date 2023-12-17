@@ -35,6 +35,8 @@ ssize_t sys_user_exit(uint64 code) {
   sprint("User exit with code:%d.\n", code);
   // reclaim the current process, and reschedule. added @lab3_1
   free_process( current );
+  // wake up parent process if have any
+  wake_up_parent(current);
   schedule();
   return 0;
 }
@@ -78,7 +80,8 @@ uint64 sys_user_free_page(uint64 va) {
 //
 ssize_t sys_user_fork() {
   sprint("User call fork.\n");
-  return do_fork( current );
+  int pid = do_fork( current );
+  return pid;
 }
 
 //
@@ -94,6 +97,34 @@ ssize_t sys_user_yield() {
   schedule();
   return 0;
 }
+
+int sys_user_wait(uint64 pid){
+  if(pid == -1){ // 父进程等待任意一个子进程退出即返回子进程的pid
+    int child = get_child_proc(current);
+    sprint("child pid:%d\n", child);
+    if(child == -1){
+      return -1;
+    }
+    insert_to_waiting_queue(current);
+    schedule();
+    return child;
+  }
+  else if(pid > 0){ // 父进程等待进程号为pid的子进程退出即返回子进程的pid
+    int res = is_child(current, pid);
+    if(res == -1) {
+      return -1; // is not child
+    }
+    else{
+      //sprint("res:%d\n", res);
+      insert_to_waiting_queue(current);
+      schedule(); // child's status is ready
+      return pid;
+    }
+  }
+  else{ // 如果pid不合法或pid大于0且pid对应的进程不是当前进程的子进程，返回-1
+    return -1;
+  }
+} 
 
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
@@ -114,6 +145,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_wait:
+      return sys_user_wait(a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }
