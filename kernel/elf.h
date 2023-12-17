@@ -27,7 +27,7 @@
 #define STT_SECTION 3 //：关联到可以重定位的 Section。
 #define STT_FILE 4 //：给出了这个对象文件的源文件名，譬如 program.o 的源文件就是 program.c。它的 Section index 为 SHN_ABS。（后面会讲到）
 #define STT_COMMON 5 //：标识了未初始化的公共块。后面会详细讲到。
-#define STT_TLS 6 //：指定了线程本地存储的实体。（本章不讨论多线程，所以先跳过）
+#define STT_TLS 6 //：指定了线程本地存储的实体。
 
 // elf header structure
 typedef struct elf_header_t {

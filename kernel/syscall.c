@@ -14,14 +14,16 @@
 
 #include "spike_interface/spike_utils.h"
 
+// define at elf.c 
 extern elf_symbol all_symbols[100];
 extern char symbol_names[100][30];
 extern int symbol_count;
 
+// added@lab1_challenge1，得到地址ra所对应的函数符号
 int get_funcname(uint64 ra){
   //sprint("%ld\n", ra);
   for(int i = 0;i < symbol_count;++i){
-    //sprint("%ld\n", all_symbols[i].value);
+    // sprint("%x, %s\n", all_symbols[i].value, symbol_names[i]);
     // 地址在调用的某个函数的栈帧范围中
     if(ra >= all_symbols[i].value && ra < all_symbols[i].value + all_symbols[i].size){
       sprint("%s\n", symbol_names[i]);
@@ -54,16 +56,18 @@ ssize_t sys_user_exit(uint64 code) {
 
 ssize_t sys_user_print_backtrace(int layer){
   // call elf_print_backtrace in elf.c
-  uint64 sp = current->trapframe->regs.sp + 32; // 当前sp
-  uint64 ra = sp + 8; // 返回地址
+  uint64 sp = current->trapframe->regs.sp + 4 * 8; // 当前sp
+  uint64 ra = sp + 1 * 8; // 返回地址
+  //sprint("sp:%d\n", sp);
+  //sprint("ra:%d\n", current->trapframe->regs.sp);
   //sprint("Enter user printtrace!, layer:%d\n", layer);
   int i = 0;
   for(i = 0;i < layer;++i){
     int res = get_funcname(*(uint64*)ra); // 求得函数在栈帧中的地址
-    if(res == -1){ // main
+    if(res == -1){ // main函数，直接返回
       return 0;
     }
-    ra += 16;
+    ra += 16; // 每个函数f占用16B的堆栈
   }
   return 0;
 }

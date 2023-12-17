@@ -79,21 +79,20 @@ elf_status elf_load(elf_ctx *ctx) {
   return EL_OK;
 }
 
-// 获取所有的函数名称，储存到symbol_names
+// 从elf header中获取所有的函数名称，储存到symbol_names
 elf_status elf_load_funcname(elf_ctx* ctx){
   //sprint("Entering loading funcname!\n");
   elf_section_header str_header;
   elf_section_header symbol_header;
   elf_section_header shstr_header;
+  elf_section_header header;
 
-  uint16 shstrlab_offset = ctx->ehdr.shstrndx; // shstrlab在节头表中的索引
-  // 读取shstrtab表项的内容
+    // 先读取shstrtab表项的内容
   elf_fpread(ctx, (void *)&shstr_header, sizeof(shstr_header), ctx->ehdr.shoff + sizeof(shstr_header) * ctx->ehdr.shstrndx);
   char shstr_sec[shstr_header.size];
   elf_fpread(ctx, &shstr_sec, shstr_header.size, shstr_header.offset);
+  uint16 shstrlab_offset = ctx->ehdr.shstrndx; // shstrlab在节头表中的索引
   //sprint("%d %d\n", shstr_header.size, shstr_header.offset);
-
-  elf_section_header header;
   // 遍历每一个节头表，找到字符串表与符号表的位置
   for(int i = 0, offset = ctx->ehdr.shoff;i < ctx->ehdr.shnum;++i, offset += sizeof(elf_section_header)){
     // 读取此节头表的表项header
@@ -120,8 +119,8 @@ elf_status elf_load_funcname(elf_ctx* ctx){
     // 读取符号表表项
     if (elf_fpread(ctx, (void *)&symbol, sizeof(symbol), offset) != sizeof(symbol)) return EL_EIO;
     
-    //sprint("%d\n", symbol.info);
-    if((symbol.info & 0xf) == 2){ // 低四位值为2，是函数
+    //sprint("%x\n", symbol.info);
+    if((symbol.info & 0xf) == STT_FUNC){ // 低四位值为STT_FUNC，是函数
       char func_name[30];
       uint64 func_offset = str_header.offset + symbol.name; // 计算在文件中的偏移
       elf_fpread(ctx, (void*)&func_name, sizeof(func_name), func_offset);
