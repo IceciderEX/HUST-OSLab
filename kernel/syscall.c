@@ -101,12 +101,12 @@ ssize_t sys_user_yield() {
 int sys_user_wait(uint64 pid){
   if(pid == -1){ // 父进程等待任意一个子进程退出即返回子进程的pid
     int child = get_child_proc(current);
-    sprint("child pid:%d\n", child);
-    if(child == -1){
+    //sprint("child pid:%d\n", child);
+    if(child == -1){ // 找不到子进程，返回-1
       return -1;
     }
-    insert_to_waiting_queue(current);
-    schedule();
+    insert_to_waiting_queue(current); // 父进程加入到等待队列
+    schedule(); // child's status is ready
     return child;
   }
   else if(pid > 0){ // 父进程等待进程号为pid的子进程退出即返回子进程的pid
@@ -116,7 +116,7 @@ int sys_user_wait(uint64 pid){
     }
     else{
       //sprint("res:%d\n", res);
-      insert_to_waiting_queue(current);
+      insert_to_waiting_queue(current); // 父进程加入到等待队列
       schedule(); // child's status is ready
       return pid;
     }

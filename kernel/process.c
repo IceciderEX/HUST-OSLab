@@ -248,7 +248,7 @@ int do_fork( process* parent)
         break;
       }
       case DATA_SEGMENT:{
-        // 数据段不能映射，需要复制一份
+        // 数据段不能映射，需要复制一份到子进程
         for(int j = 0;j < parent->mapped_info[DATA_SEGMENT].npages;++j){
           uint64 parent_code_seg_va = parent->mapped_info[DATA_SEGMENT].va + j * PGSIZE;
           uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
