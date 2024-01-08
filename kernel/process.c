@@ -235,7 +235,8 @@ int do_fork( process* parent)
         // 将子进程中对应的逻辑地址空间映射到其父进程中装载代码段的物理页面
         uint64 parent_code_seg_va = parent->mapped_info[CODE_SEGMENT].va;
         uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
-        map_pages(child->pagetable, parent->mapped_info[CODE_SEGMENT].va, parent->mapped_info[CODE_SEGMENT].npages * PGSIZE, parent_code_seg_pa, prot_to_type(PROT_EXEC | PROT_READ, 1));
+        map_pages(child->pagetable, parent->mapped_info[CODE_SEGMENT].va, parent->mapped_info[CODE_SEGMENT].npages * PGSIZE,
+           parent_code_seg_pa, prot_to_type(PROT_EXEC | PROT_READ, 1));
 
         // after mapping, register the vm region (do not delete codes below!)
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
