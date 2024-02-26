@@ -199,8 +199,8 @@ void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
         }
 endop:;
     }
-    // for (int i = 0; i < p->line_ind; i++)
-    //     sprint("%p %d %d\n", p->line[i].addr, p->line[i].line, p->line[i].file);
+    for (int i = 0; i < p->line_ind; i++)
+    sprint("%p %d %d\n", p->line[i].addr, p->line[i].line, p->line[i].file);
 }
 
 //
@@ -229,6 +229,12 @@ elf_status elf_load(elf_ctx *ctx) {
   }
 
   return EL_OK;
+}
+
+elf_status get_errorline_section(elf_ctx* ctx){
+    elf_sect_header errorline_header;
+
+    elf_fpread(ctx, (void* )&errorline_header, sizeof(errorline_header), ctx->ehdr.shoff + ctx->ehdr.shstrndx + sizeof(errorline_header));
 }
 
 typedef union {
@@ -285,6 +291,8 @@ void load_bincode_from_host_elf(process *p) {
 
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
+
+  get_errorline_section(&elfloader);
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
