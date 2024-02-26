@@ -92,6 +92,9 @@ void read_uint16(uint16 *out, char **off) {
 }
 
 /*
+* 为了降低挑战的难度，本实验在elf.c中给出了debug_line段的解析函数make_addr_line。
+* 这个函数接受三个参数，ctx为elf文件的上下文指针，这个可以参考文件中的其他函数；debug_line为指向.debug_line段数据的指针，
+* 你需要读取elf文件中名为.debug_line的段保存到缓冲区中，然后将缓冲区指针传入这个参数；length为.debug_line段数据的长度。
 * analyzis the data in the debug_line section
 *
 * the function needs 3 parameters: elf context, data in the debug_line section
@@ -102,6 +105,12 @@ void read_uint16(uint16 *out, char **off) {
 * "process->file" stores all code file names of code files and their directory path index of array "dir"
 * "process->line" stores all relationships map instruction addresses to code line numbers
 * and their code file name index of array "file"
+函数调用结束后，process结构体的dir、file、line三个指针会各指向一个数组，
+dir数组存储所有代码文件的文件夹路径字符串指针，如/home/abc/bcd的文件夹路径为/home/abc，本项目user文件夹下的app_errorline.c文件夹路径为user；
+file数组存储所有代码文件的文件名字符串指针以及其文件夹路径在dir数组中的索引；
+line数组存储所有指令地址，代码行号，文件名在file数组中的索引三者的映射关系。
+如某文件第3行为a = 0，被编译成地址为0x1234处的汇编代码li ax, 0和0x1238处的汇编代码sd 0(s0), ax。
+那么file数组中就包含两项，addr属性分别为0x1234和0x1238，line属性为3，file属性为“某文件”的文件名在file数组中的索引。
 */
 void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
    process *p = ((elf_info *)ctx->info)->p;
