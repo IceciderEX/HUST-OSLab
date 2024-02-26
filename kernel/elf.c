@@ -238,12 +238,13 @@ elf_status get_errorline_section(elf_ctx* ctx){
                 ctx->ehdr.shoff + ctx->ehdr.shstrndx + sizeof(shstr_header));
 
     elf_sect_header cur_header;
+    char shstr_sec[shstr_header.size];
     // find errorline header
     for(int i = 0; i < ctx->ehdr.shnum; ++i){
         size_t offset = ctx->ehdr.shoff + ctx->ehdr.shentsize * i;
         if(elf_fpread(ctx, (void* )&cur_header, sizeof(cur_header), offset) != sizeof(cur_header)) return EL_EIO;
         // compare name to find .debugline
-        if(strcmp(cur_header.name, ".debug_line") == 0) 
+        if(strcmp(cur_header.name + , ".debug_line") == 0) 
 
     }
 
