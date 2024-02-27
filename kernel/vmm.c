@@ -11,6 +11,10 @@
 #include "spike_interface/spike_utils.h"
 #include "util/functions.h"
 
+// added @lab2_C2
+mcb* mcb_head;
+uint64 malloc_addr_top = USER_FREE_ADDRESS_START;
+
 /* --- utility functions for virtual address mapping --- */
 //
 // establish mapping of virtual address [va, va+size] to phyiscal address [pa, pa+size]
@@ -32,6 +36,7 @@ int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm)
 
 //
 // convert permission code to permission types of PTE
+// user value 1: user can access
 //
 uint64 prot_to_type(int prot, int user) {
   uint64 perm = 0;
@@ -194,8 +199,88 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
   // pte_t* PTE = page_walk(page_dir, va, 0);
   pte_t* PTE = page_walk(page_dir, va, 0);
   if(PTE != NULL){
-    uint64 pa = lookup_pa(page_dir, va);
-    free_page((void*) pa);
+    //uint64 pa = lookup_pa(page_dir, va);
+    //free_page((void*) pa);
+    free_page((void*)(PTE2PA(*PTE)));
   }
   *PTE = (*PTE) & (~PTE_V);
+}
+
+// map n bytes
+void my_map_for_nbytes(uint64 n){
+  // get next page's address
+  uint64 next_page_start_addr = ROUNDUP(g_ufree_page, PGSIZE);
+  void* allocated_page; 
+
+  // map (n % PGSIZE + 1) pages
+  for(uint64 i = next_page_start_addr;i < g_ufree_page + n;i += PGSIZE){
+    allocated_page = alloc_page();
+    memset(allocated_page, 0, PGSIZE);
+    // user_vm_map((pagetable_t)current->pagetable, next_page_start_addr, PGSIZE, (uint64)allocated_page,
+    //                prot_to_type(PROT_READ | PROT_WRITE, 1));
+    map_pages((pagetable_t)current->pagetable, i, PGSIZE, (uint64)allocated_page,
+                    prot_to_type(PROT_READ | PROT_WRITE, 1));
+  }
+  g_ufree_page += n;
+}
+
+// malloc n bytes using pcb structions, return the start addr of newly malloc memory
+// return the address of the malloc memory
+uint64 my_malloc(uint64 n){
+  // sprint("mymalloc begin\n");
+  
+  mcb* cur_mcb = mcb_head;
+  // First, find all mcbs to see whether there is a existing block(size >= n) can be used
+  while(1){
+    // if there is no mcb unit, then jump to create procedure
+    if(cur_mcb == NULL) break;
+    // memory distribute method: if avaiable and size is bigger, simply use it
+    if(cur_mcb->size >= n && cur_mcb->avaiable == 1){
+      cur_mcb->avaiable = 0; // malloc(ed)
+      return cur_mcb->start;
+    }
+    if(cur_mcb->next == NULL) break;
+    else cur_mcb = cur_mcb->next;
+  }
+  // cannot find, create a new mcb and memory block
+  uint64 heap_top = g_ufree_page;
+
+  my_map_for_nbytes(sizeof(mcb) + n);
+  // traverse the page table (starting from page_dir) to find the corresponding pte of va.
+  pte_t* heap_top_pte = page_walk((pagetable_t)current->pagetable, heap_top, 1);
+  // get the new mcb's physical address
+  mcb* new_mcb = (mcb*) (PTE2PA(*heap_top_pte) + (heap_top & PGOFFSET));
+  // memory align to 8 bytes
+  uint64 offset = (uint64)new_mcb % 8;
+  new_mcb = (mcb*)((uint64)new_mcb + 8 - offset);
+
+  // initialize mcb's data
+  new_mcb->avaiable = 0;
+  new_mcb->size = n;
+  new_mcb->start = heap_top + sizeof(mcb);
+  new_mcb->next = NULL;
+
+  // after while loop, cur_mcb is the last mcb unit
+  if(cur_mcb == NULL){
+    mcb_head = new_mcb;
+  }
+  else cur_mcb->next = new_mcb;
+  // sprint("malloc:%x, size:%lu, n:%d\n", new_mcb->start, new_mcb->size, n);
+  return new_mcb->start;
+}
+
+// free va's corresponding mcb and memory
+void my_free(uint64 va){
+  // get mcb(to free)'s virtual address
+  uint64 mcb_addr = va - sizeof(mcb);
+  // sprint("free:%x\n", mcb_addr);
+  // traverse the page table (starting from page_dir) to find the corresponding pte of va.
+  pte_t* mcb_pte = page_walk((pagetable_t)current->pagetable, mcb_addr, 0);
+  // get the mcb's physical address
+  mcb* free_mcb = (mcb*)(PTE2PA(*mcb_pte) + (mcb_addr & PGOFFSET));
+  // memory align
+  uint64 offset = (uint64)free_mcb % 8;
+  free_mcb = (mcb*)((uint64)free_mcb + 8 - offset);
+  // set avaiable
+  free_mcb->avaiable = 1;
 }
