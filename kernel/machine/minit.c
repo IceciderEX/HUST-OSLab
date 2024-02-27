@@ -88,7 +88,7 @@ void timerinit(uintptr_t hartid) {
 }
 
 //
-// m_start: machine mode C entry point.
+// m_start: machine mode C entry point. 初始化模拟器设备和接口，设置中断信息
 //
 void m_start(uintptr_t hartid, uintptr_t dtb) {
   // init the spike file interface (stdin,stdout,stderr)

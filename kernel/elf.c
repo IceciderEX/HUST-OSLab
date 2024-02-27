@@ -83,6 +83,7 @@ typedef union {
 //
 // returns the number (should be 1) of string(s) after PKE kernel in command line.
 // and store the string(s) in arg_bug_msg.
+// 需要从命令行前两个参数加载两个程序。需要阅读并修改elf.c来让pke能从命令行加载第二个app
 //
 static size_t parse_args(arg_buf *arg_bug_msg) {
   // HTIFSYS_getmainvars frontend call reads command arguments to (input) *arg_bug_msg
