@@ -39,17 +39,27 @@ typedef struct elf_prog_header_t {
 
 // elf section header
 typedef struct elf_sect_header_t{
-    uint32 name;
+    uint32 name; // offset of section name in .strlab
     uint32 type;
     uint64 flags;
-    uint64 addr;
-    uint64 offset;
-    uint64 size;
+    uint64 addr; /*the first byte of the section.*/ // virtual addr of section
+    uint64 offset; /*给出节区的第一个字节与文件头之间的偏移*/ // section offset in file(no meaning for .bss)
+    uint64 size; // section length in file
     uint32 link;
     uint32 info;
     uint64 addralign;
-    uint64 entsize;
+    uint64 entsize; // each entry's length
 } elf_sect_header;
+
+// elf symbol header
+typedef struct elf_symbol_t{
+  uint32 name; // 符号在字符串表中的索引
+  unsigned char info; 
+  unsigned char other;
+  uint16 shndx; // 符号所在节在节头表中的索引
+  uint64 value; // 符号相对节起始位置的字节偏移量
+  uint64 size; // 符号表示对象的字节个数
+} elf_symbol;
 
 // compilation units header (in debug line section)
 typedef struct __attribute__((packed)) {
@@ -85,6 +95,8 @@ typedef struct elf_ctx_t {
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
+// add @lab1_c2
+elf_status get_errorline_section(elf_ctx* ctx);
 void load_bincode_from_host_elf(process *p);
 
 #endif

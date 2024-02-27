@@ -111,6 +111,8 @@ file数组存储所有代码文件的文件名字符串指针以及其文件夹�
 line数组存储所有指令地址，代码行号，文件名在file数组中的索引三者的映射关系。
 如某文件第3行为a = 0，被编译成地址为0x1234处的汇编代码li ax, 0和0x1238处的汇编代码sd 0(s0), ax。
 那么file数组中就包含两项，addr属性分别为0x1234和0x1238，line属性为3，file属性为“某文件”的文件名在file数组中的索引。
+
+构造指令地址-源代码行号-源代码文件名的对应表
 */
 void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
    process *p = ((elf_info *)ctx->info)->p;
@@ -138,6 +140,7 @@ void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
             read_uleb128(NULL, &off); read_uleb128(NULL, &off);
         }
         off++; addr_line regs; regs.addr = 0; regs.file = 1; regs.line = 1;
+        // 每个行号语句都以 1 字节操作码开头，后面可以选择跟一个参数。每个操作码都告诉要更改哪些状态机寄存器
         // simulate the state machine op code
         for (;;) {
             uint8 op = *(off++);
@@ -199,8 +202,11 @@ void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
         }
 endop:;
     }
-    for (int i = 0; i < p->line_ind; i++)
-    sprint("%p %d %d\n", p->line[i].addr, p->line[i].line, p->line[i].file);
+    // eg. 0x000000008100001a 15 0
+    // 0x0000000081000022 14 2
+    // 0x0000000081000024 19 2
+    // for (int i = 0; i < p->line_ind; i++)
+    // sprint("%p %d %d\n", p->line[i].addr, p->line[i].line, p->line[i].file);
 }
 
 //
@@ -231,23 +237,35 @@ elf_status elf_load(elf_ctx *ctx) {
   return EL_OK;
 }
 
+char errorline_content[10000]; // to store errorline section's content
+
 elf_status get_errorline_section(elf_ctx* ctx){
-    elf_sect_header shstr_header; // section header string table
+    elf_sect_header shstr_header; // section header string table header
     // get shstrtable
     elf_fpread(ctx, (void* )&shstr_header, sizeof(shstr_header), 
-                ctx->ehdr.shoff + ctx->ehdr.shstrndx + sizeof(shstr_header));
+                ctx->ehdr.shoff + ctx->ehdr.shstrndx * sizeof(elf_sect_header));
 
     elf_sect_header cur_header;
+    elf_sect_header errorline_header;
+    // section header string table's content addr
     char shstr_sec[shstr_header.size];
+    elf_fpread(ctx, &shstr_sec, shstr_header.size, shstr_header.offset);
     // find errorline header
     for(int i = 0; i < ctx->ehdr.shnum; ++i){
-        size_t offset = ctx->ehdr.shoff + ctx->ehdr.shentsize * i;
+        uint64 offset = ctx->ehdr.shoff + ctx->ehdr.shentsize * i;
         if(elf_fpread(ctx, (void* )&cur_header, sizeof(cur_header), offset) != sizeof(cur_header)) return EL_EIO;
-        // compare name to find .debugline
-        if(strcmp(cur_header.name + , ".debug_line") == 0) 
-
+        // compare name to find .debugline section
+        // sprint("%s\n", cur_header.name + shstr_sec);
+        if(strcmp(cur_header.name + shstr_sec, ".debug_line") == 0) {
+            errorline_header = cur_header;
+            break;
+        }
     }
 
+    elf_fpread(ctx, (void* )&errorline_content, errorline_header.size, errorline_header.offset);
+    // get line, file, dir array
+    make_addr_line(ctx, errorline_content, errorline_header.size);
+    return EL_OK;
 }
 
 typedef union {
