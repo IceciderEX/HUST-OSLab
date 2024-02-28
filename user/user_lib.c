@@ -80,20 +80,20 @@ void yield() {
 //
 // lib call to sem create
 //
-void sem_new(){
-  do_user_call(SYS_user_create_sem, 0, 0, 0, 0, 0, 0, 0);
+int sem_new(int value){
+  return do_user_call(SYS_user_create_sem, value, 0, 0, 0, 0, 0, 0);
 }
 
 //
 // lib call to sem's P operation
 //
-void sem_P(int semId){
-  do_user_call(SYS_user_sem_P, semId, 0, 0, 0, 0, 0, 0);
+int sem_P(int semId){
+  return do_user_call(SYS_user_sem_P, semId, 0, 0, 0, 0, 0, 0);
 }
 
 //
 // lib call to sem's V operation
 //
-void sem_V(int semId){
-  do_user_call(SYS_user_sem_V, semId, 0, 0, 0, 0, 0, 0);
+int sem_V(int semId){
+  return do_user_call(SYS_user_sem_V, semId, 0, 0, 0, 0, 0, 0);
 }

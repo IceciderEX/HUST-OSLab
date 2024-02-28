@@ -28,6 +28,8 @@ extern char trap_sec_start[];
 
 // process pool. added @lab3_1
 process procs[NPROC];
+// sem pool. added @lab3_c2
+sem semaphores[NSEM];
 
 // current points to the currently running user-mode application.
 process* current = NULL;
@@ -68,6 +70,20 @@ void switch_to(process* proc) {
   // return_to_user() is defined in kernel/strap_vector.S. switch to user mode with sret.
   // note, return_to_user takes two parameters @ and after lab2_1.
   return_to_user(proc->trapframe, user_satp);
+}
+
+//
+// initialize sem pool (the semaphores[] array). added @lab3_c2
+//
+void init_sem_pool() {
+  memset(semaphores, 0, sizeof(sem) * NSEM);
+
+  for (int i = 0; i < NSEM; ++i) {
+    semaphores[i].available = 1;
+    semaphores[i].id = i;
+    semaphores[i].value = 1;
+    semaphores[i].waiting_list_head = NULL;
+  }
 }
 
 //
@@ -254,4 +270,52 @@ int do_fork( process* parent)
   insert_to_ready_queue( child );
 
   return child->pid;
+}
+
+// alloc a semaphore
+// return the semId of the alloced, else return -1
+int alloc_semaphore(int value){
+  for(int i = 0;i < NSEM;++i){
+    if(semaphores[i].available == 1){
+      semaphores[i].available = 0;
+      semaphores[i].value = value;
+      return i;
+    }
+  }
+  return -1;
+}
+
+// do V op for semaphore
+int sem_V(int semId){
+  if(semId < 0 || semId > NSEM) {
+    panic("semaphore id error");
+    return -1;
+  }
+
+  semaphores[semId].value++;
+  if(semaphores[semId].value <= 0){
+    // remove the head
+    process* head = semaphores[semId].waiting_list_head;
+    semaphores[semId].waiting_list_head = head->queue_next;
+    insert_to_ready_queue(head);
+  }
+  return 0;
+}
+
+// do P op for semaphore
+int sem_P(int semId){
+  if(semId < 0 || semId > NSEM) {
+    panic("semaphore id error");
+    return -1;
+  }
+
+  semaphores[semId].value--;
+  if(semaphores[semId].value < 0){
+    process* cur_head = semaphores[semId].waiting_list_head;
+    semaphores[semId].waiting_list_head = current;
+    semaphores[semId].waiting_list_head->queue_next = cur_head;
+    current->status = BLOCKED;
+    schedule();
+  }
+  return 0;
 }

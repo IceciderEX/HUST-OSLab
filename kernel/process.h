@@ -18,15 +18,18 @@ typedef struct trapframe_t {
   /* offset:272 */ uint64 kernel_satp;
 }trapframe;
 
+// semaphote struct
 typedef struct semaphore{
-  int id;
+  int id; // sem id [0 - NSEM - 1]
   int available; // mark this sem whether being used
-  int value;
-  process* waiting_list_head;
-}
+  int value; 
+  struct process_t* waiting_list_head; // waiting list, using to wake up process
+}sem;
 
 // riscv-pke kernel supports at most 32 processes
 #define NPROC 32
+// sem counts at most
+#define NSEM 32
 // maximum number of pages in a process's heap
 #define MAX_HEAP_PAGES 32
 
@@ -103,12 +106,20 @@ void switch_to(process*);
 
 // initialize process pool (the procs[] array)
 void init_proc_pool();
+// initialize sem pool (the semaphores[] array). added @lab3_c2
+void init_sem_pool();
 // allocate an empty process, init its vm space. returns its pid
 process* alloc_process();
 // reclaim a process, destruct its vm space and free physical pages.
 int free_process( process* proc );
 // fork a child from parent
 int do_fork(process* parent);
+// alloc a semaphore
+int alloc_semaphore(int value);
+// do V op for semaphore
+int sem_V(int semId);
+// do P op for semaphore
+int sem_P(int semId);
 
 // current running process
 extern process* current;
