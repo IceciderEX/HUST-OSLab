@@ -206,18 +206,15 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
   *PTE = (*PTE) & (~PTE_V);
 }
 
-// map n bytes
+// map n bytes' corresponding pages
 void my_map_for_nbytes(uint64 n){
   // get next page's address
   uint64 next_page_start_addr = ROUNDUP(g_ufree_page, PGSIZE);
   void* allocated_page; 
-
   // map (n % PGSIZE + 1) pages
   for(uint64 i = next_page_start_addr;i < g_ufree_page + n;i += PGSIZE){
     allocated_page = alloc_page();
     memset(allocated_page, 0, PGSIZE);
-    // user_vm_map((pagetable_t)current->pagetable, next_page_start_addr, PGSIZE, (uint64)allocated_page,
-    //                prot_to_type(PROT_READ | PROT_WRITE, 1));
     user_vm_map((pagetable_t)current->pagetable, i, PGSIZE, (uint64)allocated_page,
                     prot_to_type(PROT_READ | PROT_WRITE, 1));
   }

@@ -47,7 +47,7 @@ void free_page(void *pa) {
 
 //
 // takes the first free page from g_free_mem_list, and returns (allocates) it.
-// Allocates only ONE page!
+// Allocates only ONE page! return pysical address
 //
 void *alloc_page(void) {
   list_node *n = g_free_mem_list.next;
