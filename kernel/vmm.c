@@ -218,7 +218,7 @@ void my_map_for_nbytes(uint64 n){
     memset(allocated_page, 0, PGSIZE);
     // user_vm_map((pagetable_t)current->pagetable, next_page_start_addr, PGSIZE, (uint64)allocated_page,
     //                prot_to_type(PROT_READ | PROT_WRITE, 1));
-    map_pages((pagetable_t)current->pagetable, i, PGSIZE, (uint64)allocated_page,
+    user_vm_map((pagetable_t)current->pagetable, i, PGSIZE, (uint64)allocated_page,
                     prot_to_type(PROT_READ | PROT_WRITE, 1));
   }
   g_ufree_page += n;
@@ -228,7 +228,6 @@ void my_map_for_nbytes(uint64 n){
 // return the address of the malloc memory
 uint64 my_malloc(uint64 n){
   // sprint("mymalloc begin\n");
-  
   mcb* cur_mcb = mcb_head;
   // First, find all mcbs to see whether there is a existing block(size >= n) can be used
   while(1){
