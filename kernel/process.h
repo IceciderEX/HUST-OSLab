@@ -18,6 +18,13 @@ typedef struct trapframe_t {
   /* offset:272 */ uint64 kernel_satp;
 }trapframe;
 
+typedef struct semaphore{
+  int id;
+  int available; // mark this sem whether being used
+  int value;
+  process* waiting_list_head;
+}
+
 // riscv-pke kernel supports at most 32 processes
 #define NPROC 32
 // maximum number of pages in a process's heap
