@@ -69,16 +69,31 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
       sprint("%x", *pte & PTE_RSW);
       if(((*pte) & PTE_RSW) == 0x100){
         // panic("RSW bit");
-        uint64 parent_pa = PTE2PA(*pte);
-        void* pa = alloc_page();
-        memcpy(pa, (void*)parent_pa, PGSIZE);
-        *pte &= ~PTE_RSW;
-        *pte |= PTE_W;
-        *pte |= PTE_U;
-        // ROUNDDOWN(stval, PGSIZE) is the page begining address?
-        user_vm_map((pagetable_t)current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+        // build a same heap for child process.
 
-        
+        // convert free_pages_address into a filter to skip reclaimed blocks in the heap
+        // when mapping the heap blocks
+        int free_block_filter[MAX_HEAP_PAGES];
+        memset(free_block_filter, 0, MAX_HEAP_PAGES);
+        uint64 heap_bottom = current->parent->user_heap.heap_bottom;
+        for (int i = 0; i < current->parent->user_heap.free_pages_count; i++) {
+          int index = (current->parent->user_heap.free_pages_address[i] - heap_bottom) / PGSIZE;
+          free_block_filter[index] = 1;
+        }
+        // copy and map the heap blocks
+        for (uint64 heap_block = current->user_heap.heap_bottom;
+             heap_block < current->user_heap.heap_top; heap_block += PGSIZE) {
+          if (free_block_filter[(heap_block - heap_bottom) / PGSIZE])  // skip free blocks
+            continue;
+
+          void* child_pa = alloc_page();
+          memcpy(child_pa, (void*)lookup_pa(current->parent->pagetable, heap_block), PGSIZE);
+          user_vm_map((pagetable_t)current->pagetable, heap_block, PGSIZE, (uint64)child_pa,
+                      prot_to_type(PROT_WRITE | PROT_READ, 1));
+        }
+
+        // copy the heap manager from parent to child
+        memcpy((void*)&current->user_heap, (void*)&current->parent->user_heap, sizeof(current->parent->user_heap));
       }
       else{
         void* pa = alloc_page();
