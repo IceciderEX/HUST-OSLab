@@ -178,7 +178,6 @@ int free_process( process* proc ) {
 int do_fork(process* parent)
 {
   sprint( "will fork a child from parent %d.\n", parent->pid );
-  sprint( "will fork a child from parent %d.\n", current->pid );
   process* child = alloc_process();
 
   for( int i=0; i<parent->total_mapped_region; i++ ){
@@ -214,7 +213,10 @@ int do_fork(process* parent)
           // memcpy(child_pa, (void*)lookup_pa(parent->pagetable, heap_block), PGSIZE);
           user_vm_map((pagetable_t)child->pagetable, heap_block, PGSIZE, parent_pa,
                       prot_to_type(PROT_RSW | PROT_READ, 1));
-          sprint("map %x -> %x\n", heap_block, parent_pa);
+          //sprint("map %x -> %x\n", heap_block, parent_pa);
+          uint8 *cow_base = (uint8 *)COW_BASE;
+          if(parent->parent == NULL) cow_base[PTCOWIDX(parent_pa)] = 2;
+          else cow_base[PTCOWIDX(parent_pa)]++;
         }
 
         child->mapped_info[HEAP_SEGMENT].npages = parent->mapped_info[HEAP_SEGMENT].npages;
@@ -251,6 +253,7 @@ int do_fork(process* parent)
         // 将子进程中对应的逻辑地址空间映射到其父进程中装载代码段的物理页面
         uint64 parent_code_seg_va = parent->mapped_info[CODE_SEGMENT].va;
         uint64 parent_code_seg_pa = lookup_pa(parent->pagetable, parent_code_seg_va);
+        sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", parent_code_seg_pa, parent_code_seg_va);
         map_pages(child->pagetable, parent->mapped_info[CODE_SEGMENT].va, parent->mapped_info[CODE_SEGMENT].npages * PGSIZE,
            parent_code_seg_pa, prot_to_type(PROT_EXEC | PROT_READ, 1));
 

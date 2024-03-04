@@ -6,6 +6,7 @@
 #include "process.h"
 #include "strap.h"
 #include "syscall.h"
+#include "memlayout.h"
 #include "pmm.h"
 #include "vmm.h"
 #include "sched.h"
@@ -80,18 +81,17 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
         pte_t* pte = page_walk(current->pagetable, stval, 0);
         void* child_pa = alloc_page();
         uint64 parent_pa = PTE2PA(*pte);
+        // first unmap the pre va -> parent's pa, whether free?
+        uint8 *cow_base = (uint8 *)COW_BASE;
+        cow_base[PTCOWIDX(parent_pa)] -= 1;
         user_vm_unmap((pagetable_t)current->pagetable, stval, PGSIZE, 0);
         memcpy(child_pa, (void*)parent_pa, PGSIZE);
-        sprint("pte %x -> %x\n", stval, PTE2PA(*pte));
+        // sprint("pte %x -> %x\n", stval, PTE2PA(*pte));
 
-        uint64 flags = PTE_FLAGS(*pte);
-        sprint("flags: %x\n", flags);
-        (*pte) = PA2PTE((uint64)child_pa) | flags;
-        (*pte) |= PTE_W;
         (*pte) &= ~PTE_RSW;
-        sprint("pte %x -> %x\n", stval, PTE2PA(*pte));
-        flags = PTE_FLAGS(*pte);
-        sprint("flags: %x\n", flags);
+        // sprint("pte %x -> %x\n", stval, PTE2PA(*pte));
+        user_vm_map((pagetable_t)current->pagetable, stval, PGSIZE, (uint64)child_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+        // sprint("flags: %x\n", flags);
       }
       else{
         void* pa = alloc_page();

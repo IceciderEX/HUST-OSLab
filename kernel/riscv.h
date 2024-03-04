@@ -215,6 +215,9 @@ static inline void flush_tlb(void) { asm volatile("sfence.vma zero, zero"); }
 #define PXSHIFT(level) (PGSHIFT + (9 * (level)))
 #define PX(level, va) ((((uint64)(va)) >> PXSHIFT(level)) & PXMASK)
 
+// COW count array: pa -> idx
+#define PTCOWIDX(pa) (((pa) & 0x7FFFFFF) / 4096)
+
 // one beyond the highest possible virtual address.
 // MAXVA is actually one bit less than the max allowed by
 // Sv39, to avoid having to sign-extend virtual addresses

@@ -64,6 +64,8 @@ int s_start(void) {
   // the code now formally works in paging mode, meaning the page table is now in use.
   sprint("kernel page table is on \n");
 
+  // memset((void *)COW_BASE, 0, 8 * PGSIZE);
+
   // added @lab3_1
   init_proc_pool();
 
