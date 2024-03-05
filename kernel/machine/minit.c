@@ -6,6 +6,7 @@
 #include "kernel/riscv.h"
 #include "kernel/config.h"
 #include "spike_interface/spike_utils.h"
+#include "kernel/sync_utils.h"
 
 //
 // global variables are placed in the .data section.
@@ -87,19 +88,33 @@ void timerinit(uintptr_t hartid) {
   write_csr(mie, read_csr(mie) | MIE_MTIE);
 }
 
+static volatile int counter = 0;
+
 //
 // m_start: machine mode C entry point. 初始化模拟器设备和接口，设置中断信息
+// called by mentry.S
 //
 void m_start(uintptr_t hartid, uintptr_t dtb) {
-  // init the spike file interface (stdin,stdout,stderr)
-  // functions with "spike_" prefix are all defined in codes under spike_interface/,
-  // sprint is also defined in spike_interface/spike_utils.c
-  spike_file_init();
-  sprint("In m_start, hartid:%d\n", hartid);
-
+  // spike模拟器的一些虚拟设备和HTIF接口进行初始化的过程只能被执行一次，而非每个核都执行一次
+  // 并且在spike和HTIF初始化完成之前，需要用同步机制保证每个核都不会访问他们相应的资源。
   // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
   // init_dtb() is defined above.
-  init_dtb(dtb);
+  if(hartid == 0){
+    // init the spike file interface (stdin,stdout,stderr)
+    // functions with "spike_" prefix are all defined in codes under spike_interface/,
+    spike_file_init();
+    // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
+    // init_dtb() is defined above.
+    init_dtb(dtb);
+  }
+  // sync all cpus 
+  sync_barrier(&counter, NCPU);
+
+  // sprint is also defined in spike_interface/spike_utils.c
+  // hartid in a4
+  sprint("In m_start, hartid:%d\n", hartid);
+  // write hartid to tp
+  write_tp(hartid);
 
   // save the address of trap frame for interrupt in M mode to "mscratch". added @lab1_2
   write_csr(mscratch, &g_itrframe);
