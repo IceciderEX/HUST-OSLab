@@ -17,4 +17,10 @@
 // start virtual address (4MB) of our simple heap. added @lab2_2
 #define USER_FREE_ADDRESS_START 0x00000000 + PGSIZE * 1024
 
+// PKE_MAX_ALLOWABLE_RAM (128MB)
+#define PKE_MAX_ALLOWABLE_RAM 128 * 1024 * 1024 
+
+// the ending physical address that PKE observes. added @lab2_1
+#define PHYS_TOP (DRAM_BASE + PKE_MAX_ALLOWABLE_RAM)
+
 #endif

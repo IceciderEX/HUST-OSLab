@@ -10,6 +10,9 @@
 #include "util/string.h"
 #include "spike_interface/spike_utils.h"
 #include "util/functions.h"
+#include "spike_interface/atomic.h"
+
+spinlock_t virtual_lock;
 
 /* --- utility functions for virtual address mapping --- */
 //
@@ -17,6 +20,7 @@
 // with the permission of "perm".
 //
 int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm) {
+  spinlock_lock(&virtual_lock);
   uint64 first, last;
   pte_t *pte;
 
@@ -27,6 +31,7 @@ int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm)
       panic("map_pages fails on mapping va (0x%lx) to pa (0x%lx)", first, pa);
     *pte = PA2PTE(pa) | perm | PTE_V;
   }
+  spinlock_unlock(&virtual_lock);
   return 0;
 }
 
@@ -183,6 +188,7 @@ void user_vm_map(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int pe
 // reclaim the physical pages if free!=0
 //
 void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
+  
   // TODO (lab2_2): implement user_vm_unmap to disable the mapping of the virtual pages
   // in [va, va+size], and free the corresponding physical pages used by the virtual
   // addresses when if 'free' (the last parameter) is not zero.

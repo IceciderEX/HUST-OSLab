@@ -1,6 +1,21 @@
 #ifndef _SYNC_UTILS_H_
 #define _SYNC_UTILS_H_
 
+#include "util/types.h"
+#include "riscv.h"
+#include "spike_interface/spike_utils.h"
+
+
+typedef struct spinlock{
+  uint64 locked; // whether be locked 
+
+  char* name;
+  uint64 hartid; // the hart holds this lock
+}lock;
+
+void acquire_lock(lock* lock);
+void release_lock(lock* lock);
+
 static inline void sync_barrier(volatile int *counter, int all) {
 
   int local;
