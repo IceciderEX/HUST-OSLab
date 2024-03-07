@@ -14,6 +14,8 @@
 #include "vmm.h"
 #include "sched.h"
 #include "proc_file.h"
+#include "elf.h"
+#include "hostfs.h"
 
 #include "spike_interface/spike_utils.h"
 
@@ -215,6 +217,29 @@ ssize_t sys_user_unlink(char * vfn){
 }
 
 //
+// lib call to exec
+//
+ssize_t sys_user_exec(char * pathname){
+  // exec接受一个可执行程序的路径名作为参数，表示要重新载入的elf文件。exec函数在执行成功时不会返回，执行失败时返回-1。
+  char* pathname_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathname);
+  int fd = do_open(pathname_pa, 0);
+  char spike_filename[MAX_FILE_NAME_LEN];
+  // get file path in spike system
+  strcpy(spike_filename, H_ROOT_DIR);
+  strcpy(spike_filename + strlen(H_ROOT_DIR), pathname_pa);
+  sprint("Application: %s\n", pathname_pa);
+  // sprint("spike name: %s\n", spike_filename);
+  exec_elf_read(spike_filename, current);
+  // can't find the file
+  if(fd == -1){
+    sprint("cannot find the exec file\n");
+    return -1;
+  }
+  do_close(fd);
+  return 0;
+}
+
+//
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
@@ -262,6 +287,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_link((char *)a1, (char *)a2);
     case SYS_user_unlink:
       return sys_user_unlink((char *)a1);
+    case SYS_user_exec:
+      return sys_user_exec((char *)a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }

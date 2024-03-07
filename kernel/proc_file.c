@@ -69,6 +69,7 @@ struct file *get_opened_file(int fd) {
   // browse opened file list to locate the fd
   for (int i = 0; i < MAX_FILES; ++i) {
     pfile = &(current->pfiles->opened_files[i]);  // file entry
+    // sprint("pfile:%s\n", pfile->f_dentry->name);
     if (i == fd) break;
   }
   if (pfile == NULL) panic("do_read: invalid fd!\n");
