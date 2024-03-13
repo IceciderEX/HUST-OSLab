@@ -37,15 +37,15 @@ ssize_t sys_user_exit(uint64 code) {
   sprint("hartid = %d: User exit with code:%d.\n", hartid, code);
   // in lab1, PKE considers only one app (one process). 
   // therefore, shutdown the system when the app calls exit()
-
   sync_barrier(&exit_counter, NCPU);
-  if(hartid == 0){
-    sprint("hartid = %d: shutdown with code:%d.\n", hartid, code);
+  // let hart 0 do the shutdown
+  if(read_tp() == 0){
+    sprint("hartid = %d: shutdown with code:%d.\n", read_tp(), code);
+    shutdown(code);
   }
-  shutdown(code);
+  return 0;
 }
 
-extern lock memory_lock;
 //
 // maybe, the simplest implementation of malloc in the world ... added @lab2_2
 //
@@ -53,11 +53,11 @@ uint64 sys_user_allocate_page() {
   int hartid = read_tp();
 
   void* pa = alloc_page();
-  uint64 va = g_ufree_page[hartid];
-  g_ufree_page[hartid] += PGSIZE;
-  user_vm_map((pagetable_t)current[hartid]->pagetable, va, PGSIZE, (uint64)pa,
+  uint64 va = g_ufree_page[read_tp()];
+  g_ufree_page[read_tp()] += PGSIZE;
+  user_vm_map((pagetable_t)current[read_tp()]->pagetable, va, PGSIZE, (uint64)pa,
          prot_to_type(PROT_WRITE | PROT_READ, 1));
-  sprint("hartid = %d: vaddr 0x%x is mapped to paddr 0x%x\n", hartid, va, pa);
+  sprint("hartid = %d: vaddr 0x%x is mapped to paddr 0x%x\n", read_tp(), va, pa);
   return va;
 }
 
@@ -66,7 +66,7 @@ uint64 sys_user_allocate_page() {
 //
 uint64 sys_user_free_page(uint64 va) {
   int hartid = read_tp();
-  user_vm_unmap((pagetable_t)current[hartid]->pagetable, va, PGSIZE, 1);
+  user_vm_unmap((pagetable_t)current[read_tp()]->pagetable, va, PGSIZE, 1);
   return 0;
 }
 

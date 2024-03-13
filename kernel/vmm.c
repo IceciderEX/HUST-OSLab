@@ -20,7 +20,7 @@ spinlock_t virtual_lock;
 // with the permission of "perm".
 //
 int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm) {
-  spinlock_lock(&virtual_lock);
+  //spinlock_lock(&virtual_lock);
   uint64 first, last;
   pte_t *pte;
 
@@ -31,7 +31,7 @@ int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm)
       panic("map_pages fails on mapping va (0x%lx) to pa (0x%lx)", first, pa);
     *pte = PA2PTE(pa) | perm | PTE_V;
   }
-  spinlock_unlock(&virtual_lock);
+  //spinlock_unlock(&virtual_lock);
   return 0;
 }
 

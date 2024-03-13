@@ -84,14 +84,13 @@ static volatile int s_start_counter = 0;
 // 如同lab1_challenge3中spike设备的初始化，这个过程也只应执行一次，并且初始化完毕后所有核才能够开启页表，继续执行之后的指令。
 //
 int s_start(void) {
-  int hartid = read_tp();
-  sprint("hartid = %d: Enter supervisor mode...\n", hartid);
+  sprint("hartid = %d: Enter supervisor mode...\n", read_tp());
   // in the beginning, we use Bare mode (direct) memory mapping as in lab1.
   // but now, we are going to switch to the paging mode @lab2_1.
   // note, the code still works in Bare mode when calling pmm_init() and kern_vm_init().
   write_csr(satp, 0);
 
-  if(hartid == 0){
+  if(read_tp() == 0){
     // init phisical memory manager
     pmm_init();
 
@@ -108,11 +107,11 @@ int s_start(void) {
   // sprint("kernel page table is on \n");
 
   // the application code (elf) is first loaded into memory, and then put into execution
-  load_user_program(&user_app[hartid]);
+  load_user_program(&user_app[read_tp()]);
 
-  sprint("hartid = %d: Switch to user mode...\n", hartid);
+  sprint("hartid = %d: Switch to user mode...\n", read_tp());
   
-  //uint64 hartid = 0;
+  uint64 hartid = read_tp();
   
   vm_alloc_stage[hartid] = 1;
   // switch_to() is defined in kernel/process.c
