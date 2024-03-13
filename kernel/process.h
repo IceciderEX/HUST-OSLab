@@ -109,5 +109,9 @@ int do_fork(process* parent);
 
 // current running process
 extern process* current;
+// find child 
+int get_child_proc(process* parent);
+// judge if child is parent's child proc
+int is_child(process* parent, int child);
 
 #endif

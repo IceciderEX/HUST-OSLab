@@ -8,5 +8,7 @@
 
 void insert_to_ready_queue( process* proc );
 void schedule();
+void insert_to_waiting_queue( process* proc );
+void wake_up_parent(process* proc);
 
 #endif

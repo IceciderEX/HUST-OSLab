@@ -14,6 +14,8 @@
 #include "vmm.h"
 #include "sched.h"
 #include "proc_file.h"
+#include "elf.h"
+#include "hostfs.h"
 
 #include "spike_interface/spike_utils.h"
 
@@ -36,6 +38,8 @@ ssize_t sys_user_exit(uint64 code) {
   sprint("User exit with code:%d.\n", code);
   // reclaim the current process, and reschedule. added @lab3_1
   free_process( current );
+  // wake up parent process if have any
+  wake_up_parent(current);
   schedule();
   return 0;
 }
@@ -79,7 +83,8 @@ uint64 sys_user_free_page(uint64 va) {
 //
 ssize_t sys_user_fork() {
   sprint("User call fork.\n");
-  return do_fork( current );
+  int pid = do_fork(current);
+  return pid;
 }
 
 //
@@ -94,6 +99,37 @@ ssize_t sys_user_yield() {
   insert_to_ready_queue(current);
   schedule();
   return 0;
+}
+
+//
+// wait
+//
+int sys_user_wait(uint64 pid){
+  if(pid == -1){ // 父进程等待任意一个子进程退出即返回子进程的pid
+    int child = get_child_proc(current);
+    //sprint("child pid:%d\n", child);
+    if(child == -1){ // 找不到子进程，返回-1
+      return -1;
+    }
+    insert_to_waiting_queue(current); // 父进程加入到等待队列
+    schedule(); // child's status is ready
+    return child;
+  }
+  else if(pid > 0){ // 父进程等待进程号为pid的子进程退出即返回子进程的pid
+    int res = is_child(current, pid);
+    if(res == -1) {
+      return -1; // is not child
+    }
+    else{
+      //sprint("res:%d\n", res);
+      insert_to_waiting_queue(current); // 父进程加入到等待队列
+      schedule(); // child's status is ready
+      return pid;
+    }
+  }
+  else{ // 如果pid不合法或pid大于0且pid对应的进程不是当前进程的子进程，返回-1
+    return -1;
+  }
 }
 
 //
@@ -215,6 +251,31 @@ ssize_t sys_user_unlink(char * vfn){
 }
 
 //
+// lib call to exec
+// command:
+//
+ssize_t sys_user_exec(char * command, char * para){
+  // exec接受一个可执行程序的路径名作为参数，表示要重新载入的elf文件。exec函数在执行成功时不会返回，执行失败时返回-1。
+  char* pathname_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), command);
+  //char* para_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), para);
+  int fd = do_open(pathname_pa, 0);
+  char spike_filename[MAX_FILE_NAME_LEN];
+  // get file path in spike system
+  strcpy(spike_filename, H_ROOT_DIR);
+  strcpy(spike_filename + strlen(H_ROOT_DIR), pathname_pa);
+  sprint("Application: %s\n", pathname_pa);
+  // sprint("spike name: %s\n", spike_filename);
+  exec_elf_read(pathname_pa, current, para);
+  // can't find the file
+  if(fd == -1){
+    sprint("cannot find the exec file\n");
+    return -1;
+  }
+  do_close(fd);
+  return 0;
+}
+
+//
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
@@ -233,6 +294,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_wait:
+      return sys_user_wait(a1);
     // added @lab4_1
     case SYS_user_open:
       return sys_user_open((char *)a1, a2);
@@ -262,6 +325,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_link((char *)a1, (char *)a2);
     case SYS_user_unlink:
       return sys_user_unlink((char *)a1);
+    case SYS_user_exec:
+      return sys_user_exec((char *)a1, (char *)a2);
     default:
       panic("Unknown syscall %ld \n", a0);
   }
