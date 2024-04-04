@@ -236,35 +236,32 @@ void exec_elf_read(const char* pathname, process* p, char* para){
     panic("fail to init elfloader.\n");
 
   // load elf. elf_load() is defined above.
-  if (elf_reload(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
+  if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
-
-  // 完成参数加载
-  // Set up argc and argv on the user stack
-  uint64_t stack_top = USER_STACK_TOP; // Assuming USER_STACK_TOP is the top of the user stack
-  uint64_t argc = 1; // Initially set to 1 for the program name
-  //uint64_t arg_len = strlen(para) + 1; // Include null terminator
-  //uint64_t argv_addr = stack_top - arg_len;
-  stack_top -= sizeof(uint64_t);
-  stack_top -= sizeof(uint64_t);
-  memcpy(user_va_to_pa((pagetable_t)p->pagetable, (void*)stack_top), &argc, sizeof(uint64_t));
-
-  // Adjust stack for argv
-  stack_top -= sizeof(uint64_t); // Reserve space for the null pointer
-  uint64 addr = (uint64)para;
-  memcpy(user_va_to_pa((pagetable_t)p->pagetable, (void*)stack_top), &addr, sizeof(uint64_t));
-  sprint("%x\n", user_va_to_pa((pagetable_t)p->pagetable, (void*)stack_top));
-  sprint("%x\n", para);
-
-  // Adjust process's stack pointer
-  p->trapframe->regs.sp = stack_top;
-  p->trapframe->regs.a1 = stack_top;
   
   // close the file
   vfs_close(info.f);
 
-  sprint("Application program entry point (virtual address): 0x%lx\n", current->trapframe->epc);
+  sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+
+  // 完成参数加载
+  const int num_args = 1;
+  uint64 argv[num_args + 1],sp = USER_STACK_TOP;
+  char* parameter_pa = (char*)alloc_page();
+  p->user_heap.heap_top += PGSIZE;
+  p->mapped_info[HEAP_SEGMENT].npages++;
+  memset(parameter_pa, 0, PGSIZE);
+  memcpy(parameter_pa, para, strlen(para));
+  user_vm_map((pagetable_t)p->pagetable, p->user_heap.heap_top - PGSIZE, PGSIZE, (uint64)parameter_pa,
+                  prot_to_type(PROT_WRITE | PROT_READ, 1));
+  argv[0] = p->user_heap.heap_top - PGSIZE;
+
+  sp -= (num_args + 1) * sizeof(uint64);
+  memcpy(user_va_to_pa(p->pagetable,(void*)sp),(char*)argv,(num_args + 1) * sizeof(uint64));
+  p->trapframe->regs.a0 = 1;
+  p->trapframe->regs.a1 = sp;
+  p->trapframe->regs.sp = sp;
   return;
 }

@@ -16,6 +16,7 @@
 #include "proc_file.h"
 #include "elf.h"
 #include "hostfs.h"
+#include "memlayout.h"
 
 #include "spike_interface/spike_utils.h"
 
@@ -115,7 +116,7 @@ int sys_user_wait(uint64 pid){
     schedule(); // child's status is ready
     return child;
   }
-  else if(pid > 0){ // 父进程等待进程号为pid的子进程退出即返回子进程的pid
+  else if(pid > 0 && pid < NPROC){ // 父进程等待进程号为pid的子进程退出即返回子进程的pid
     int res = is_child(current, pid);
     if(res == -1) {
       return -1; // is not child
@@ -130,6 +131,7 @@ int sys_user_wait(uint64 pid){
   else{ // 如果pid不合法或pid大于0且pid对应的进程不是当前进程的子进程，返回-1
     return -1;
   }
+  return 0;
 }
 
 //
@@ -257,21 +259,19 @@ ssize_t sys_user_unlink(char * vfn){
 ssize_t sys_user_exec(char * command, char * para){
   // exec接受一个可执行程序的路径名作为参数，表示要重新载入的elf文件。exec函数在执行成功时不会返回，执行失败时返回-1。
   char* pathname_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), command);
-  //char* para_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), para);
-  int fd = do_open(pathname_pa, 0);
-  char spike_filename[MAX_FILE_NAME_LEN];
-  // get file path in spike system
-  strcpy(spike_filename, H_ROOT_DIR);
-  strcpy(spike_filename + strlen(H_ROOT_DIR), pathname_pa);
+  char* para_pa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), para);
   sprint("Application: %s\n", pathname_pa);
-  // sprint("spike name: %s\n", spike_filename);
-  exec_elf_read(pathname_pa, current, para);
+
+  int fd = do_open(pathname_pa, 0);
   // can't find the file
   if(fd == -1){
     sprint("cannot find the exec file\n");
     return -1;
   }
   do_close(fd);
+  reset_process(current);
+  exec_elf_read(pathname_pa, current, para_pa);
+  switch_to(current);
   return 0;
 }
 

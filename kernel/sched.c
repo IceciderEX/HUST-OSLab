@@ -79,7 +79,7 @@ void wake_up_parent(process* proc){
   if(waiting_queue_head == NULL) return;
   for(p = waiting_queue_head;p != NULL;p = p->queue_next){
     //sprint("cur pid:%d\n", p->pid);
-    if(p == proc->parent){
+    if(p->pid == proc->parent->pid){
       process* parent = p;
       if(p == waiting_queue_head){
         waiting_queue_head = waiting_queue_head->queue_next;
