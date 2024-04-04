@@ -198,7 +198,10 @@ static inline void flush_tlb(void) { asm volatile("sfence.vma zero, zero"); }
 #define PTE_G (1L << 5)  // global
 #define PTE_A (1L << 6)  // accessed
 #define PTE_D (1L << 7)  // dirty
-#define PTE_RSW (1L << 8) // 2 bits of RSW
+#define PTE_RSW (1L << 8) // 2 bits of RSW, added@lab3_c3
+
+// COW count array: pa -> idx
+#define PTCOWIDX(pa) (((pa) & 0x7FFFFFF) / 4096)
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
@@ -214,9 +217,6 @@ static inline void flush_tlb(void) { asm volatile("sfence.vma zero, zero"); }
 
 #define PXSHIFT(level) (PGSHIFT + (9 * (level)))
 #define PX(level, va) ((((uint64)(va)) >> PXSHIFT(level)) & PXMASK)
-
-// COW count array: pa -> idx
-#define PTCOWIDX(pa) (((pa) & 0x7FFFFFF) / 4096)
 
 // one beyond the highest possible virtual address.
 // MAXVA is actually one bit less than the max allowed by

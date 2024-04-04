@@ -51,7 +51,7 @@ void handle_mtimer_trap() {
 }
 
 int is_cow(pagetable_t pagetable, uint64 va){
-  // sprint("%x\n", *pte);
+  // sprint("%x\n", *pte); 
   // sprint("%x\n", PTE_RSW);
   // sprint("%x", *pte & PTE_RSW);
   if(va >= MAXVA) return 0;
@@ -59,6 +59,7 @@ int is_cow(pagetable_t pagetable, uint64 va){
   if((pte = page_walk(pagetable, va, 0)) == 0) return 0;
   if((*pte & PTE_V) == 0) return 0;
   if((*pte & PTE_U) == 0) return 0;
+  if((*pte & PTE_RSW) != 0) return 1;
   return 1;
 }
 
